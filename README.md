@@ -1,7 +1,7 @@
 # lift_g3_public
 Lifting L polynomials of genus 3 curves
 
-This repository provides a Magma program for "lifting $L$-polynomial of genus 3 curves".
+This repository provides a Magma program for "lifting $L$-polynomial of genus 3 curves", see [https://arxiv.org/abs/2602.00965](https://arxiv.org/abs/2602.00965).
 
 ## Demo 1
 
@@ -26,3 +26,22 @@ Run the following in a Magma shell from the top-level directory:
 multiply $D$ by the size of $J(C)(\mathbb{F}_q)$.
 - We verify that it equals identity.
 - We compare the timings between naive addition and hybrid addition
+
+
+
+## Algorithms in the paper 
+
+Inside ```src/g3/g3utils.m```:
+- Algorithm 1 (Naive point addition) corresponds to ```naiveAddition := function(f, Proj2Ext, DAset, DBset, P1Inf, P2Inf, P3Inf, P4Inf)```
+- Algorithm 2 (Linear algebra interpolation) and Algorithm 3 (Ideal interpolation) are part of Algorithm 1.
+
+Inside ```src/g3/g3Naive.m```:
+- Algorithm 4 (divisor inversion) corresponds to ```intrinsic '-'(D1::G3JacNaivePoint)-> G3JacNaivePoint```
+
+Inside ```src/g3/g3Hybrid.m```:
+- Algorithm 5 (Hybrid addition algorithm) corresponds to ```intrinsic '+'(D1::G3JacHybridPoint, D2::G3JacHybridPoint)->G3JacHybridPoint```
+
+Inside ```src/general/lpolyBSGS.m```:
+- Algorithm 6 (Step 2. Baby-step giant-step algorithm) corresponds to ```lPolyWrapper := function(fOverQ, f, p, lpolymodResults : method := "hybrid", a2Indicator := false, a2Value := 0)```
+
+
