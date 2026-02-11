@@ -34,6 +34,7 @@ multiply $D$ by the size of $J(C)(\mathbb{F}_q)$.
 Inside ```src/g3/g3utils.m```:
 - Algorithm 1 (Naive point addition) corresponds to ```naiveAddition := function(f, Proj2Ext, DAset, DBset, P1Inf, P2Inf, P3Inf, P4Inf)```
 - Algorithm 2 (Linear algebra interpolation) and Algorithm 3 (Ideal interpolation) are part of Algorithm 1.
+- Typical addition algorithm in [https://eprint.iacr.org/2004/118](https://eprint.iacr.org/2004/118) corresponds to ```typicalAddition := function(quarticCoeffs, D1, D2)```
 
 Inside ```src/g3/g3Naive.m```:
 - Algorithm 4 (divisor inversion) corresponds to ```intrinsic '-'(D1::G3JacNaivePoint)-> G3JacNaivePoint```
