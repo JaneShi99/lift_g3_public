@@ -1,4 +1,12 @@
 /*
+
+This file contains two tools:
+1. link to Drew's lpolymod that reads the l-poly data mod p
+2. compute bounds to a1, a2, a3, and gives candidate triples 
+in terms of [a1,a2] pairs and a3-ranges.
+*/
+
+/*
     Computing the a1, a2 (Weil bounds and KS bounds), a3 bounds
 */
 computeA1Bounds := function(p)
@@ -40,7 +48,7 @@ CandidatesWithinBounds := function(residue, p, lowerBound, upperBound)
     assert lowerCandidate-p lt lowerBound;
     assert upperCandidate+p gt upperBound;
 
-    candidateSize :=(((upperCandidate-lowerCandidate)/p)+1);
+    candidateSize := (((upperCandidate-lowerCandidate)/p)+1);
     assert Denominator(candidateSize) eq 1;
     candidateSize := Numerator(candidateSize);
     candidates := [lowerCandidate + p*i : i in [0..candidateSize-1]];
@@ -54,7 +62,7 @@ When p\geq 144, there's only one possibility for a1.
 GetA1Pbig := function(p, a1modp)
     assert p gt 144;
 
-    a1:=Integers()! (Integers()! (a1modp) mod p);
+    a1 := Integers()! (Integers()! (a1modp) mod p);
     
     assert 0 le a1 and a1 lt p;
     return (a1 gt p/2) select a1-p else a1;
@@ -75,12 +83,28 @@ GetA1A2Candidates := function(a1modp, a2modp, p)
     end for;
 
     assert #results ge 1;
-   return results;
+    return results;
 end function;
+
+/*
+GetSizeJacobianInefficient := function(f, p)
+    print p, Type(p);
+    P2modp<u,v,w> := ProjectiveSpace(GF(p), 2);
+    fModp := ChangeRing(f,PolynomialRing(GF(p)));
+    Cp := Curve(P2modp, fModp);
+    return #TorsionSubgroup(ClassGroup(Cp));
+end function;
+*/
 
 
 getJacSize := function(p, a1, a2, a3)
     return p^3 + a1*p^2 + a2*p + a3 + a2 + a1 + 1;
+end function;
+
+
+getLpoly := function(p, a1, a2, a3)
+    R<T> := PolynomialRing(Integers());
+    return p^3*T^6 + a1*p^2*T^5 + a2*p*T^4 + a3*T^3 + a2*T^2 + a1*T + 1;
 end function;
 
 

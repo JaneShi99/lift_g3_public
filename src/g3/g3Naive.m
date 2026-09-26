@@ -1,12 +1,11 @@
-import "./g3utils.m": 
-    intersectionDataToMultiset, 
-    tangentLineThroughCurvePoint,
+import "g3utils.m":
+    intersectionDataToMultiset,
     createHash,
     translateStandard,
     pointBaseCoerce,
-    curveThroughPtsWithTangent,
-    groebnerMethod,
+    negationPts,
     generatekPoints,
+    generatekPointsGaloisOrbits,
     magmaSetupHelper,
     naiveAddition;
 
@@ -29,7 +28,8 @@ declare attributes G3JacNaive:
     P1Inf, // (0:1:0) point on LInf
     P2Inf, // (0:1:0) point on LInf
     P3Inf, // (x:y:0) point on LInf
-    P4Inf; // (1:0:0) point on Linf
+    P4Inf,
+    M; // (1:0:0) point on Linf
 
 declare type G3JacNaivePoint;
 declare attributes G3JacNaivePoint: 
@@ -70,7 +70,7 @@ into type G3JacNaive}
     J`BaseSpace := Proj2;
 
     //Translate so that it's in the standard form
-    J`Standardf, J`LInf, P1234 := translateStandard(definingEquation, Proj2, J`BaseField);
+    J`M, J`Standardf, J`LInf, P1234 := translateStandard(definingEquation, Proj2, J`BaseField);
 
     //Setup magma helper
     J`MagmaIndicator := setupMagma; 
@@ -104,7 +104,7 @@ end intrinsic;
 
 
 intrinsic Print(J::G3JacNaive){}
-	printf "Jacobian whose standard curve defined by %o\n", J`Standardf;
+    printf "Jacobian whose standard curve defined by %o\n", J`Standardf;
     printf "of order %o, of l-poly %o\n", J`MagmaOrder, J`MagmaLpolyCheck;
     printf "in base field %o\n", J`BaseField;
     printf "with intersecting line %o\n", J`LInf;
@@ -114,8 +114,8 @@ end intrinsic;
 
 
 intrinsic Print(P::G3JacNaivePoint){}
-	printf "\n Point defined by %o ", P`D;
-	printf "\n on the jacobian of %o ", (P`Parent)`Standardf;
+    printf "\n Point defined by %o ", P`D;
+    printf "\n on the jacobian of %o ", (P`Parent)`Standardf;
     printf "\n with hash %o\n\n", P`hash;
 end intrinsic;
 
@@ -138,6 +138,14 @@ intrinsic generateTriplePoint(J::G3JacNaive)->G3JacNaivePoint
 {Generate random point of the form P1,P1,P1}
     pts := generatekPoints(J, 1);
     return G3JacNaivePointCreation(J, pts[1], pts[1], pts[1]);
+end intrinsic;
+
+
+
+intrinsic generateGeneralPointGaloisOrbits(J::G3JacNaive)->G3JacNaivePoint
+{Generate a random point on Jac(C)(F_q) using Galois orbits}
+    pts := generatekPointsGaloisOrbits(J);
+    return G3JacNaivePointCreation(J, pts[1], pts[2], pts[3]);
 end intrinsic;
 
 /*
@@ -164,61 +172,33 @@ intrinsic '-'(D1::G3JacNaivePoint)-> G3JacNaivePoint
     J := D1`Parent;
     f := J`ExtendedStandardf;
     Proj2Ext := J`ExtendedSpace;
-    D1, D2, D3 := Explode([P: P in D1`D]);
 
-    listOfPoints := [D1,D2,D3,J`P4Inf,J`P4Inf];
-    multisetPoints := {*P: P in listOfPoints*};
-    setPoints := Set(listOfPoints);
-
-    if &and[Multiplicity(multisetPoints, P)lt 3: P in setPoints] then
-        PointTangentPairs := [ <P, tangentLineThroughCurvePoint(f,P, Proj2Ext)>: P in setPoints |Multiplicity(multisetPoints,P) gt 1];
-        quadric := curveThroughPtsWithTangent(listOfPoints, PointTangentPairs, 5, Proj2Ext);
-    else 
-        quadric := groebnerMethod(listOfPoints, f, 2, Proj2Ext);
-    end if;
-    
-    //printf "\n quadric is %o\n",quadric;
-
-    DDOTCdata := IntersectionNumbers(Curve(Proj2Ext, quadric), Curve(Proj2Ext, f));
-    DDOTC := intersectionDataToMultiset(DDOTCdata);
-
-    assert #DDOTC eq 8;
-    assert Multiset(listOfPoints) subset DDOTC;
-    D4Pts := [P: P in (DDOTC diff Multiset(listOfPoints))];
-
-    DInv := G3JacNaivePointCreation(J, D4Pts[1],D4Pts[2],D4Pts[3]);
-    return DInv;
-end intrinsic;
-
-intrinsic '-'(D1::G3JacNaivePoint, D2::G3JacNaivePoint)-> G3JacNaivePoint
-{compute the negation of a point}
-    return D1 + (-D2);
+    D4Pts := negationPts([P: P in D1`D], f, Proj2Ext, J`P4Inf);
+    return G3JacNaivePointCreation(J, D4Pts[1], D4Pts[2], D4Pts[3]);
 end intrinsic;
 
 intrinsic '*'(n::RngIntElt, D::G3JacNaivePoint)->G3JacNaivePoint 
 {double and add using naive addition}
-    assert n ge 0;
     if n eq 0 then
         return (D`Parent)`Identity;
     end if;
+
+    if n lt 0 then
+        n := -n;
+        D := -D;
+    end if;
+
     Acc := D;
     binString := Reverse(Intseq(n,2));
-    divisorsAlongWay := [];
     for idx in [2..#binString] do    
         d := binString[idx];
-        //print "iteration number";
-        //print idx;
         Acc := Acc + Acc;
         if d eq 1 then 
             Acc := Acc + D;
         end if;
-
-        Append(~divisorsAlongWay, Acc);
     end for;
 
-    //print "divisorsAlongWay",divisorsAlongWay;
     return Acc;
-
 end intrinsic;
 
 intrinsic checkIsId(D1::G3JacNaivePoint)->BoolElt

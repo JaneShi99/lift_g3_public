@@ -1,16 +1,14 @@
-import "./g3utils.m": 
+import "g3utils.m":
     translateStandard,
     pointBaseCoerce,
     magmaSetupHelper,
     createHash,
     typicalAddition,
     naiveAddition,
+    negationPts,
     uvIsValid,
     checkConvertibleToTypical,
-    tangentLineThroughCurvePoint,
-    curveThroughPtsWithTangent,
-    groebnerMethod,
-    intersectionDataToMultiset;
+    generatekPointsGaloisOrbits;
 
 quarticCoeffs := recformat<
     dehomf,
@@ -28,7 +26,8 @@ So it entirely depends on g3Naive.
 Note: G3Smart is completely standalone from G3Naive and G3Hybrid.
 */
 
-declare type G3JacHybrid;
+declare type G3JacHybridPoint;
+declare type G3JacHybrid[G3JacHybridPoint];
 declare attributes G3JacHybrid:
     //------------------------------  following attributes are common to all three Jacobian implementations.
     Standardf, // f that defines the genus 3 curve, degree 4 homogenous polynomial in x,y,z in GF(q). This is after the transformation
@@ -49,6 +48,7 @@ declare attributes G3JacHybrid:
     P2Inf, // (0:1:0) point on LInf
     P3Inf, // (x:y:0) point on LInf
     P4Inf, // (1:0:0) point on Linf
+    M,
     QuarticCoeffs,
     TESTTypicalAddCount,
     TESTNaiveAddCount,
@@ -62,7 +62,6 @@ declare attributes uvData:
     u, //a polynomial in F_q, degree 2 or 3
     v; //a polynomial in F_q, degree 0, 1 or 2 or 3 
 
-declare type G3JacHybridPoint;
 declare attributes G3JacHybridPoint:
     Parent, //type G3JacHybrid object
     TypicalFlag, //typical or not
@@ -105,9 +104,11 @@ intrinsic G3JacHybridPointCreation(J::G3JacHybrid, P1::Pt, P2::Pt, P3::Pt) -> G3
     JP`TypicalFlag := false;
     // Remove the dependency from g3Naive ONCE IN FOR ALL
     JP`D := {*P1,P2,P3*};
-    //JP`hash := <"N", createHash(JP`D,J)>;
-    // potential problem: Sprint for multiset is not unique?
-    JP`hash := "N|" cat Sprint(JP`D);
+    // The hash must be constant on the divisor class.  A class with a
+    // collinear support is a g^1_3 (K - Q) and has many representatives
+    // L.C - Q; createHash replaces such a support by the residual point Q.
+    // Printing a multiset depends on insertion order, so sort the printed points.
+    JP`hash := "N|" cat &cat Sort([Sprint(P) cat ";" : P in createHash(JP`D, J)]);
     return JP;
 end intrinsic;
 
@@ -119,7 +120,7 @@ getHs := function(f)
     R := Parent(f);
     q := #BaseRing(R);
     
-    A2<X,Y>:=PolynomialRing(GF(q),2);
+    A2<X,Y> := PolynomialRing(GF(q),2);
     dehomf := Evaluate(f,[X,Y,1]);
 
     /* Coefficient in front of those must be zero or 1 */
@@ -172,7 +173,7 @@ into type G3JacHybrid}
 
     // Translate everything to prime field and obtain the translated equation
     pEquation := ChangeRing(definingEquation, pField);
-    pfStandard, plInf, pP1234 := translateStandard(pEquation, pSpace, pField);
+    J`M, pfStandard, plInf, pP1234 := translateStandard(pEquation, pSpace, pField);
 
     // Coerce outputs back to GF(q)
     baseRing := PolynomialRing(GF(q), 3);
@@ -211,7 +212,7 @@ end intrinsic;
 
 
 intrinsic Print(J::G3JacHybrid){}
-	printf "Jacobian whose standard curve defined by %o\n", J`Standardf;
+    printf "Jacobian whose standard curve defined by %o\n", J`Standardf;
     printf "in base field %o\n", J`BaseField;
     printf "with intersecting line %o\n", J`LInf;
     printf "with P1 = %o, P2 = %o, P3 = %o, P4 = %o\n", J`P1Inf, J`P2Inf, J`P3Inf, J`P4Inf;
@@ -259,12 +260,12 @@ generateThreeRandomPoints := function(dehomf)
     maxTries := 10000;
     R := Parent(dehomf);
     q := #BaseRing(R);
-    X := R.1; Y:= R.2; 
+    X := R.1; Y := R.2;
 
     seen := {};
     it := 0;
     while it lt maxTries and #seen lt 3 do
-        XCoord:= Random(GF(q));
+        XCoord := Random(GF(q));
         YRoots := Roots(UnivariatePolynomial(Evaluate(dehomf,[XCoord,Y])));
         if #YRoots ge 1 and not XCoord in [pt[1]: pt in seen] then
             YCoord := Random([factor[1]: factor in YRoots]);
@@ -308,6 +309,49 @@ intrinsic generateGeneralPoint(J::G3JacHybrid)->G3JacHybridPoint
 end intrinsic;
 
 
+intrinsic generateGeneralPointGaloisOrbits(J::G3JacHybrid)->G3JacHybridPoint
+{Generate a random point on Jac(C)(F_q) using Galois orbits}
+    pts := generatekPointsGaloisOrbits(J);
+    return G3JacHybridPointCreationTypicalIfPossible(J, pts[1], pts[2], pts[3]);
+end intrinsic;
+
+
+intrinsic Parent(D::G3JacHybridPoint) -> G3JacHybrid
+{Return the Jacobian containing D.}
+    return D`Parent;
+end intrinsic;
+
+
+intrinsic Zero(J::G3JacHybrid) -> G3JacHybridPoint
+{Return the identity element of J.}
+    return J`Identity;
+end intrinsic;
+
+
+intrinsic Random(J::G3JacHybrid) -> G3JacHybridPoint
+{Return a random typical point on J.}
+    return generateGeneralPoint(J);
+end intrinsic;
+
+
+intrinsic 'eq'(D1::G3JacHybridPoint, D2::G3JacHybridPoint) -> BoolElt
+{Equality of hybrid Jacobian points via canonical hash.}
+    return D1`hash eq D2`hash;
+end intrinsic;
+
+
+intrinsic IsCoercible(J::G3JacHybrid, D::G3JacHybridPoint) -> BoolElt, .
+{Accept any hybrid Jacobian point as an element of J.}
+    return true, D;
+end intrinsic;
+
+
+intrinsic IsCoercible(J::G3JacHybrid, x::.) -> BoolElt, .
+{Reject non-G3JacHybridPoint values.}
+    return false, "not a G3JacHybridPoint";
+end intrinsic;
+
+
 typicalToPts := function(D)
     typicalRep := D`uvData;
     u := typicalRep`u;
@@ -325,6 +369,14 @@ typicalToPts := function(D)
     pts := {* J`ExtendedSpace![xy[1], xy[2], extField!1]: xy in xys *};
     
     return pts;
+end function;
+
+toNaiveRep := function(D)
+    if D`TypicalFlag then
+        return typicalToPts(D);
+    else
+        return D`D;
+    end if;
 end function;
 
 ptsToUV := function(Pts, resultPolyRing)//, ResultFieldOfDefn
@@ -349,6 +401,25 @@ ptsToUV := function(Pts, resultPolyRing)//, ResultFieldOfDefn
     return <u,v>;
 
 end function;
+
+/*
+G3JacHybridPoint constructor which figures out 
+whether naive point or hybrid point needs to be used.
+*/
+intrinsic G3JacHybridPointCreationTypicalIfPossible(J::G3JacHybrid, P1::Pt, P2::Pt, P3::Pt) -> G3JacHybridPoint
+{Takes Jacobian J and three points}
+    convertibleToTypical := checkConvertibleToTypical([P1,P2,P3]);
+
+    if convertibleToTypical then 
+        basePolyRing := Parent(J`QuarticCoeffs`dehomf);
+        uvDataRaw := ptsToUV([P1,P2,P3], basePolyRing);
+        uvData := uvDataCreation(uvDataRaw[1], uvDataRaw[2]);
+        return G3JacHybridPointCreation(J, uvData);
+    else 
+        return G3JacHybridPointCreation(J, P1, P2, P3);
+    end if;
+
+end intrinsic;
 
 
 intrinsic '+'(D1::G3JacHybridPoint, D2::G3JacHybridPoint)->G3JacHybridPoint
@@ -396,74 +467,21 @@ intrinsic '+'(D1::G3JacHybridPoint, D2::G3JacHybridPoint)->G3JacHybridPoint
     //printf "Now we're doing naive addition. \n";
 
     naiveStartTime := Cputime();
-    if D1`TypicalFlag then 
-        D1NaiveRep := typicalToPts(D1);
-    else 
-        D1NaiveRep := D1`D;
-    end if;
-
-    if D2`TypicalFlag then 
-        D2NaiveRep := typicalToPts(D2);
-    else 
-        D2NaiveRep := D2`D;
-    end if;
+    D1NaiveRep := toNaiveRep(D1);
+    D2NaiveRep := toNaiveRep(D2);
 
     //Now we're doing the naive addition. We can do this with certainty.
     DPts := naiveAddition(J`ExtendedStandardf, J`ExtendedSpace, D1NaiveRep, D2NaiveRep, J`P1Inf, J`P2Inf, J`P3Inf, J`P4Inf);
 
-    //printf "Done naive +\n\n";
-    convertibleToTypical := checkConvertibleToTypical(DPts);
-
-    //print "---------------------------------\n";
-    //print DPts;
-    //printf "Testing uv-convertible: %o\n", convertibleToTypical;
     naiveEndTime := Cputime();
 
     J`TESTNaiveAddCount +:= 1;
     Append(~J`TESTAdditionLog, "Naive");
     J`TESTNaiveAddTime +:= naiveEndTime - naiveStartTime;
-    if convertibleToTypical then 
-        basePolyRing := Parent(J`QuarticCoeffs`dehomf);
-        uvDataRaw := ptsToUV(DPts, basePolyRing);
-        uvData := uvDataCreation(uvDataRaw[1], uvDataRaw[2]);
-        return G3JacHybridPointCreation(J, uvData);
-        //printf "Converted";
-    else 
-        return G3JacHybridPointCreation(J, DPts[1], DPts[2], DPts[3]);
-    end if;
+    return G3JacHybridPointCreationTypicalIfPossible(J, DPts[1], DPts[2], DPts[3]);
 
 end intrinsic;
 
-
-intrinsic '*'(n::RngIntElt, D::G3JacHybridPoint)->G3JacHybridPoint 
-{double and add using addition}
-    assert n ge 0;
-    if n eq 0 then
-        return (D`Parent)`Identity;
-    end if;
-    Acc := D;
-    binString := Reverse(Intseq(n,2));
-    divisorsAlongWay := [];
-    for idx in [2..#binString] do    
-        d := binString[idx];
-        //printf "Doubling...\n";
-        Acc := Acc + Acc;
-        if d eq 1 then 
-            //printf "Adding...\n";
-            Acc := Acc + D;
-        end if;
-        //printf "Iteration number%o\n of %o\n", idx, #binString;
-        Append(~divisorsAlongWay, Acc);
-    end for;
-
-    //print "divisorsAlongWay",divisorsAlongWay;
-    return Acc;
-
-end intrinsic;
-
-
-// TODO: this negation is the same as the naive negation. wrap it in a
-// function inside utils 
 /*
 Computes the negation of a point. See paper for details.
 */
@@ -473,45 +491,86 @@ intrinsic '-'(D1::G3JacHybridPoint)-> G3JacHybridPoint
     f := J`ExtendedStandardf;
     Proj2Ext := J`ExtendedSpace;
 
-    if D1`TypicalFlag then 
-        D1NaiveRep := typicalToPts(D1);
-    else 
-        D1NaiveRep := D1`D;
-    end if;
+    D4Pts := negationPts([P: P in toNaiveRep(D1)], f, Proj2Ext, J`P4Inf);
+    return G3JacHybridPointCreationTypicalIfPossible(J, D4Pts[1], D4Pts[2], D4Pts[3]);
+end intrinsic;
 
-    D1, D2, D3 := Explode([P: P in D1NaiveRep]);
-
-    listOfPoints := [D1,D2,D3,J`P4Inf,J`P4Inf];
-    multisetPoints := {*P: P in listOfPoints*};
-    setPoints := Set(listOfPoints);
-
-    if &and[Multiplicity(multisetPoints, P)lt 3: P in setPoints] then
-        PointTangentPairs := [ <P, tangentLineThroughCurvePoint(f,P, Proj2Ext)>: P in setPoints |Multiplicity(multisetPoints,P) gt 1];
-        quadric := curveThroughPtsWithTangent(listOfPoints, PointTangentPairs, 5, Proj2Ext);
-    else 
-        quadric := groebnerMethod(listOfPoints, f, 2, Proj2Ext);
-    end if;
-    
-    //printf "\n quadric is %o\n",quadric;
-
-    DDOTCdata := IntersectionNumbers(Curve(Proj2Ext, quadric), Curve(Proj2Ext, f));
-    DDOTC := intersectionDataToMultiset(DDOTCdata);
-
-    assert #DDOTC eq 8;
-    assert Multiset(listOfPoints) subset DDOTC;
-    D4Pts := [P: P in (DDOTC diff Multiset(listOfPoints))];
-
-    DInv := G3JacHybridPointCreation(J, D4Pts[1],D4Pts[2],D4Pts[3]);
-    return DInv;
+intrinsic '-'(D1::G3JacHybridPoint, D2::G3JacHybridPoint)->G3JacHybridPoint 
+{compute the difference of two points}
+    return D1 + (-D2);
 end intrinsic;
 
 
-intrinsic '-'(D1::G3JacHybridPoint, D2::G3JacHybridPoint)-> G3JacHybridPoint
-{compute the difference of two points}
-    return D1 + (-D2);
+intrinsic '*'(n::RngIntElt, D::G3JacHybridPoint)->G3JacHybridPoint 
+{double and add using addition}
+    if n eq 0 then
+        return (D`Parent)`Identity;
+    end if;
+
+    if n lt 0 then
+        n := -n;
+        D := -D;
+    end if;
+
+    Acc := D;
+    binString := Reverse(Intseq(n,2));
+    for idx in [2..#binString] do    
+        d := binString[idx];
+        //printf "Doubling...\n";
+        Acc := Acc + Acc;
+        if d eq 1 then 
+            //printf "Adding...\n";
+            Acc := Acc + D;
+        end if;
+        //printf "Iteration number%o\n of %o\n", idx, #binString;
+    end for;
+
+    return Acc;
 end intrinsic;
 
 intrinsic checkIsId(D1::G3JacHybridPoint)->BoolElt
 {check if a point is identity}
     return D1`TypicalFlag eq false and D1`D eq ((D1`Parent)`Identity)`D;
+end intrinsic;
+
+/*
+The p-power Frobenius on points.  The standard curve is F_p-rational
+(G3JacHybridCreation standardizes over the prime field), so applying
+x |-> x^p to a representative yields a representative of F(D).
+*/
+frobeniusCoeffs := function(g, p)
+    R := Parent(g);
+    mons := Monomials(g); cfs := Coefficients(g);
+    return &+[R| cfs[i]^p * mons[i] : i in [1..#mons]];
+end function;
+
+intrinsic Frobenius(D::G3JacHybridPoint) -> G3JacHybridPoint
+{The p-power Frobenius F applied to D: typical (u,v) data maps
+coefficientwise, atypical support pointwise.  Defined over any base field,
+since the standard curve is always F_p-rational.}
+    J := D`Parent;
+    p := Characteristic(J`BaseField);
+    if D`TypicalFlag then
+        uv := D`uvData;
+        uvF := uvDataCreation(frobeniusCoeffs(uv`u, p), frobeniusCoeffs(uv`v, p));
+        return G3JacHybridPointCreation(J, uvF);
+    end if;
+    PS := J`ExtendedSpace;
+    pts := [PS![P[1]^p, P[2]^p, P[3]^p] : P in D`D];
+    return G3JacHybridPointCreationTypicalIfPossible(J, pts[1], pts[2], pts[3]);
+end intrinsic;
+
+intrinsic traceZeroImage(D::G3JacHybridPoint) -> G3JacHybridPoint
+{The canonical trace-zero realization delta(D) = F(D) - D, where F is the
+p-power Frobenius and the base field is GF(p^2).  delta maps J(F_(p^2))
+onto the trace-zero subgroup ker(F+1) (surjective by Lang's theorem): it
+is a group homomorphism, constant on J(F_p)-cosets with kernel exactly
+J(F_p), and injective on cosets -- so it realizes the quotient
+J(F_(p^2))/J(F_p) canonically AS ker(F+1).  Note delta(D) is a canonical
+trace-zero IMAGE of the coset D + J(F_p), not a representative of it:
+in general F(D) - D does not lie in D + J(F_p).}
+    J := D`Parent;
+    require Degree(J`BaseField) eq 2:
+        "traceZeroImage requires the base field to be GF(p^2)";
+    return Frobenius(D) - D;
 end intrinsic;

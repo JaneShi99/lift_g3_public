@@ -3,9 +3,10 @@ This file combines g3 group code and uses lpolyhelper code
 to compute l-poly
 */
 
-AttachSpec("/home/janeshi/lift_g3_public/src/g3/g3Naive.spec");
-AttachSpec("/home/janeshi/lift_g3_public/src/g3/g3Hybrid.spec");
-load "/home/janeshi/lift_g3_public/src/general/lpolyBoundHelper.m";
+
+AttachSpec("./src/g3/g3Naive.spec");
+AttachSpec("./src/g3/g3Hybrid.spec");
+load "./src/general/lpolyBoundHelper.m";
 
 /*
 Computes the size of the giant/baby steps
@@ -15,7 +16,7 @@ computeStepSize := function(p)
 end function;
 
 
-associativeArrayPrint:= procedure(Arr)
+associativeArrayPrint := procedure(Arr)
     for k in Keys(Arr) do
         print "key = ", k;
         print "values", Arr[k];
@@ -27,7 +28,7 @@ magma implementation of defaultdict(set)
 */
 addToDict := procedure(~AA, key, value)
     if not IsDefined(AA, key) then 
-        AA[key]:= {};
+        AA[key] := {};
     end if;
     Include(~AA[key],value);
 end procedure;
@@ -40,6 +41,7 @@ For the indexing for BSGS, see the paper.
 lPolyWrapper := function(fOverQ, f, p, lpolymodResults : method := "hybrid", a2Indicator := false, a2Value := 0)
 
     assert p gt 127;
+    assert method in ["naive", "hybrid", "hyperelliptic"];
     
     // Setup the l-poly info: a1 mod p, a2 mod p, a3 mod p,
     // as well as the intervals for a1, a2, a3
@@ -65,11 +67,19 @@ lPolyWrapper := function(fOverQ, f, p, lpolymodResults : method := "hybrid", a2I
     elif method eq "hybrid" then
         J := G3JacHybridCreation(f);
     else 
-        assert false;
+        // hyperelliptic
+        J := Jacobian(HyperellipticCurve(f));
     end if;
 
     anniToTriple := AssociativeArray();
-    D :=  generateGeneralPoint(J);
+
+    if method eq "naive" or method eq "hybrid" then 
+        D :=  generateGeneralPoint(J);
+    else 
+        // hyperelliptic
+        D :=  Random(J);
+    end if;
+
 
     for a1a2Pair in a1a2Pairs do 
         a1, a2 := Explode(a1a2Pair);    
@@ -82,25 +92,31 @@ lPolyWrapper := function(fOverQ, f, p, lpolymodResults : method := "hybrid", a2I
         rpD := (p*r) * D;
 
         babyAcc := 0 * D;
-        babyStepsToIndex[babyAcc`hash] := 0;
+        
+        babyAccHash := (method eq "naive" or method eq "hybrid") select babyAcc`hash else babyAcc;
+
+        babyStepsToIndex[babyAccHash] := 0;
 
         for babyIndex in [1..r] do 
             babyAcc := babyAcc + pD;
-            babyStepsToIndex[babyAcc`hash] := babyIndex * p;
+            babyAccHash := (method eq "naive" or method eq "hybrid") select babyAcc`hash else babyAcc;
+            babyStepsToIndex[babyAccHash] := babyIndex * p;
         end for;
 
         ellMin := ell + a3Min;
         giantAcc := ellMin * D;
-        if IsDefined(babyStepsToIndex, giantAcc`hash) then  
-            babyIndex := babyStepsToIndex[giantAcc`hash];
+        giantAccHash := (method eq "naive" or method eq "hybrid") select giantAcc`hash else giantAcc;
+        if IsDefined(babyStepsToIndex, giantAccHash) then  
+            babyIndex := babyStepsToIndex[giantAccHash];
             a3 := -babyIndex;
             addToDict(~anniToTriple, ellMin-babyIndex, [a1,a2,a3]);
         end if;
 
         for giantIndex in [1..(s+1)] do 
             giantAcc := giantAcc + rpD;
-            if IsDefined(babyStepsToIndex, giantAcc`hash) then  
-                babyIndex := babyStepsToIndex[giantAcc`hash];
+            giantAccHash := (method eq "naive" or method eq "hybrid") select giantAcc`hash else giantAcc;
+            if IsDefined(babyStepsToIndex, giantAccHash) then  
+                babyIndex := babyStepsToIndex[giantAccHash];
                 anni := ellMin + giantIndex*r*p - babyIndex;
                 a3 := anni - ell;
                 if a3Min le a3 and a3 le a3Max then
@@ -147,20 +163,38 @@ lPolyWrapper := function(fOverQ, f, p, lpolymodResults : method := "hybrid", a2I
         J2 := G3JacNaiveCreation(ChangeRing(f, GF(p^2)));
     elif method eq "hybrid" then 
         J2 := G3JacHybridCreation(ChangeRing(f, GF(p^2)));
+    elif method eq "hyperelliptic" then
+        J2 := Jacobian(HyperellipticCurve(ChangeRing(f, GF(p^2))));
     else 
         assert false;
     end if;
+
     finalTriples := [];
 
-    D2 := generateGeneralPoint(J2);
+    if method eq "hyperelliptic" then 
+        D2 := Random(J2);
+    else 
+        D2 := generateGeneralPoint(J2);
+    end if;
+
     for t in allTriples do 
         J2Size := getJacSizeFp2(p,t[1],t[2],t[3]);
-        finalPt := J2Size * D2;
-        if finalPt`hash eq (J2`Identity)`hash then 
+        JSize := getJacSize(p, t[1], t[2], t[3]);
+        assert J2Size mod JSize eq 0;
+        JTwistSize := J2Size div JSize;
+        
+
+        finalPt := JTwistSize * D2;
+
+        // finalPt lies in J(F_p) iff it is fixed by the p-power Frobenius.
+        // Checking that the support points have F_p coordinates is not enough:
+        // a divisor over F_p can be supported on Galois orbits over F_(p^2), F_(p^3).
+        // Here, need three methods: "naive, hybrid, or hyperelliptic"
+        // TODO: implement this to naive and hyperelliptic
+        if finalPt eq Frobenius(finalPt) then
             Append(~finalTriples, t);
         end if;
     end for;
-
 
     return finalTriples;
 

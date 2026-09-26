@@ -13,7 +13,7 @@ Find the line tangent to f at P.
 */
 tangentLineThroughCurvePoint := function(f, P, Proj2)
     R := Parent(f);
-    x := R.1; y:= R.2; z:=R.3;
+    x := R.1; y := R.2; z := R.3;
 
     xP := P[1];
     yP := P[2];
@@ -41,7 +41,7 @@ It uses sets up a linera system and looks at the kernel
 
 lineThroughPoints := function(P1, P2, Proj2)
     q := #BaseRing(Proj2);
-    x := Proj2.1; y:= Proj2.2; z:=Proj2.3;
+    x := Proj2.1; y := Proj2.2; z := Proj2.3;
 
     monomials := [x,y,z];
     coefficients := [0: i in [1..#monomials]];
@@ -51,7 +51,7 @@ lineThroughPoints := function(P1, P2, Proj2)
     Note: Magma kernels are left kernels
     */
 
-    coefficientBasis:= Basis(Kernel(monomialEvaluation));
+    coefficientBasis := Basis(Kernel(monomialEvaluation));
     coeffs := coefficientBasis[1];
     return &+[monomials[i]*coeffs[i]: i in [1..#monomials]];
 end function;
@@ -118,7 +118,7 @@ createHash := function(D,J)
         multisetPoints := Multiset(listOfPoints);
         setPoints := Set(listOfPoints);
 
-        if &or[Multiplicity(multisetPoints, P)gt 1: P in setPoints] then 
+        if &or[Multiplicity(multisetPoints, P) gt 1: P in setPoints] then 
             doublePoint := [P: P in setPoints | (Multiplicity(multisetPoints, P) gt 1)][1];
             line := tangentLineThroughCurvePoint(f,doublePoint, Proj2Ext);
         else 
@@ -153,7 +153,7 @@ then check whether the line tangent to C at P has the intersection multiplicity 
 findLine := function(f,Proj2, base)
     q := #base;
     R := Parent(f);
-    x := R.1; y:= R.2; z:=R.3;
+    x := R.1; y := R.2; z := R.3;
     oldCurve := Curve(Proj2, f);
 
     for xCoord in GF(q) do
@@ -201,7 +201,7 @@ This is used in the constructor.
 */
 translateStandard := function(f,Proj2, base)
     oldCurve := Curve(Proj2, f);
-    x := Proj2.1; y:= Proj2.2; z:=Proj2.3;
+    x := Proj2.1; y := Proj2.2; z := Proj2.3;
     lineFound, newX1Coords, newX2Coords := findLine(f,Proj2, base);
 
     /*
@@ -248,7 +248,7 @@ translateStandard := function(f,Proj2, base)
     assert P1P2P4 subset intDataMultiset;
 
     P3 := [pt: pt in intDataMultiset diff P1P2P4][1];
-    return fNew, lNew, [P1,P2,P3,P4];
+    return M, fNew, lNew, [P1,P2,P3,P4];
 end function;
 
 /*
@@ -280,7 +280,7 @@ It uses sets up a linera system and looks at the kernel
 curveThroughPtsWithTangent := function(L,tangenetPointLinePairs,numPts, Proj2)
     q := #BaseRing(Proj2);
 
-    x := Proj2.1; y:= Proj2.2; z:=Proj2.3;
+    x := Proj2.1; y := Proj2.2; z := Proj2.3;
     
     assert numPts eq 5 or numPts eq 9;
     if numPts eq 9 then 
@@ -297,9 +297,9 @@ curveThroughPtsWithTangent := function(L,tangenetPointLinePairs,numPts, Proj2)
         P := tangentPointLinePair[1];
         line := tangentPointLinePair[2];
 
-        A:=GF(q)!Coefficient(line, x, 1);
-        B:=GF(q)!Coefficient(line, y, 1);
-        C:=GF(q)!Coefficient(line, z, 1);
+        A := GF(q)!Coefficient(line, x, 1);
+        B := GF(q)!Coefficient(line, y, 1);
+        C := GF(q)!Coefficient(line, z, 1);
 
         /*
         We know that the line given by (at P)
@@ -334,7 +334,7 @@ curveThroughPtsWithTangent := function(L,tangenetPointLinePairs,numPts, Proj2)
     Note: Magma kernels are left kernels
     */
 
-    coefficientBasis:= Basis(Kernel(monomialEvaluation));
+    coefficientBasis := Basis(Kernel(monomialEvaluation));
     coeffs := coefficientBasis[1];
     return &+[monomials[i]*coeffs[i]: i in [1..#monomials]];
 end function;
@@ -345,7 +345,7 @@ moved into the affine patch z \neq 0.
 This function is used after linear change of variables
 */
 successfullyMoveZAffinePatch := function(points, M, Proj2)
-    q:=#BaseRing(Proj2);
+    q := #BaseRing(Proj2);
     return &and[not Pvec[3] eq 0 where Pvec := M*Matrix([[GF(q)!P[1]],[GF(q)!P[2]],[GF(q)!P[3]]]): P in points];
 end function;
 
@@ -354,7 +354,7 @@ Perform a linear transformation of variables to all the points in
 the list points
 */
 linearTransformPoints := function(M, points, Proj2)
-    q:=#BaseRing(Proj2);
+    q := #BaseRing(Proj2);
     return [[Pvec[1][1],Pvec[2][1],Pvec[3][1]] where Pvec:=M*Matrix([[GF(q)!P[1]],[GF(q)!P[2]],[GF(q)!P[3]]]): P in points];
 end function;
 
@@ -364,7 +364,7 @@ Perform a linear transformation of variables a function in P^2
 linearTransformFunction := function(M, f, Proj2)
     M:=M^(-1);
 
-    x := Proj2.1; y:= Proj2.2; z:=Proj2.3;
+    x := Proj2.1; y := Proj2.2; z := Proj2.3;
 
     VariableReplacement:=[
         M[1][1]*x+M[1][2]*y+M[1][3]*z, 
@@ -381,7 +381,7 @@ Given a homogenized equation, de-homogenize
 at the third variable
 */
 dehomogenizeAt3f := function(f,Proj2)
-    q:= #BaseRing(Proj2);
+    q := #BaseRing(Proj2);
     A2<X,Y>:=PolynomialRing(GF(q),2);
     return Evaluate(f, [X,Y,1]);
 end function;
@@ -400,7 +400,7 @@ end function;
     homogenize function f at third variable
 */
 homogenizefat3 := function(f, deg, Proj2);
-    x := Proj2.1; y:= Proj2.2; z:=Proj2.3;
+    x := Proj2.1; y := Proj2.2; z := Proj2.3;
     homf:= Homogenization(Evaluate(f, [x,y]),z);
     assert Degree(homf) eq deg;
     return homf;
@@ -437,7 +437,7 @@ with multiplicities,it uses magma's ideal construction to find
 a curve of expected degree with prescribed points
 */
 curveThroughPointsGroebner := function(f,points,expectDegree, Proj2)
-    q:=#BaseRing(Proj2);
+    q := #BaseRing(Proj2);
     A2<X,Y>:=PolynomialRing(GF(q),2);
 
     setOfPoints := Set(points);
@@ -472,11 +472,17 @@ then homogenize it back and translate back.
 */
 
 groebnerMethod := function(points, f, deg, Proj2);
-    q:=#BaseRing(Proj2);
+    // Proj2 is over the storage field F_(q^6).  Choose the temporary
+    // coordinate change over the intended base field F_q so that the
+    // interpolating curve and its residual divisor descend to F_q.
+    K := BaseRing(Proj2);
+    q := Iroot(#K, 6);
+    assert q^6 eq #K;
+    Fq := GF(q);
 
-    M := RandomMatrix(GF(q), 3, 3);
-    while (Determinant(M) eq 0) or not successfullyMoveZAffinePatch(points, M, Proj2) do 
-        M := RandomMatrix(GF(q), 3, 3);
+    M := ChangeRing(RandomMatrix(Fq, 3, 3), K);
+    while (Determinant(M) eq 0) or not successfullyMoveZAffinePatch(points, M, Proj2) do
+        M := ChangeRing(RandomMatrix(Fq, 3, 3), K);
     end while;
 
     Ltransformed := linearTransformPoints(M,points, Proj2);
@@ -490,6 +496,11 @@ groebnerMethod := function(points, f, deg, Proj2);
     gHom := homogenizefat3(g,deg,Proj2);
 
     gUntransformed := linearTransformFunction(M^(-1), gHom, Proj2);
+
+    // The equation is projective, so normalize away its scalar before
+    // checking that all coefficients are fixed by q-power Frobenius.
+    gNormalized := gUntransformed/LeadingCoefficient(gUntransformed);
+    assert &and[c^q eq c : c in Coefficients(gNormalized)];
 
     return gUntransformed;
 end function;
@@ -513,7 +524,7 @@ generatekPoints := function(J, k)
     q := #(J`BaseField);
     f := J`Standardf;
     R := Parent(f);
-    x := R.1; y:= R.2; z:=R.3;
+    x := R.1; y := R.2; z := R.3;
 
     Proj2Ext := J`ExtendedSpace;
     while it lt maxTries and #seen lt k do
@@ -531,6 +542,74 @@ generatekPoints := function(J, k)
     end while;
     assert #seen eq k;
     return Setseq(seen);
+end function;
+
+
+/*
+Find a random affine point (x, y) on the curve f over F_{q^d}.
+If d > 1, ensures the point is NOT defined over F_q (i.e. x^q != x).
+Returns <xCoord, yCoord> in F_{q^d}.
+*/
+findRandomPointOverExtension := function(f, q, d)
+    maxTries := 10000;
+    Fd := GF(q^d);
+    fd := ChangeRing(f, Fd);
+    Rd := Parent(fd);
+
+    for i in [1..maxTries] do
+        xc := Random(Fd);
+        if d gt 1 and xc^q eq xc then continue; end if;
+        yRoots := Roots(UnivariatePolynomial(Evaluate(fd, [xc, Rd.2, Fd!1])));
+        if #yRoots ge 1 then
+            return xc, Random([r[1] : r in yRoots]);
+        end if;
+    end for;
+    error "findRandomPointOverExtension: failed to find a point after max tries";
+end function;
+
+
+/*
+Generate 3 points on the curve using Galois orbits.
+With prob 1/2: {P1, Frob(P1), P2} where P1 in F_{q^2}\F_q, P2 in F_q.
+With prob 1/3: {P1, Frob(P1), Frob^2(P1)} where P1 in F_{q^3}\F_q.
+With prob 1/6: {P1, P2, P3} all in F_q.
+Asymptotically, this yields a uniformly random point on Jac(C)(F_q).
+
+This is a shared helper; both g3Naive and g3Hybrid call it.
+*/
+generatekPointsGaloisOrbits := function(J)
+    q := #(J`BaseField);
+    f := J`Standardf;
+    Proj2Ext := J`ExtendedSpace;
+    F6 := J`ExtendedField;
+
+    roll := Random(1, 6);
+
+    if roll le 3 then
+        // Case 1 (prob 1/2): degree-2 Galois orbit + one rational point
+        x1, y1 := findRandomPointOverExtension(f, q, 2);
+        P1 := Proj2Ext![F6!x1, F6!y1, F6!1];
+        P1conj := Proj2Ext![F6!(x1^q), F6!(y1^q), F6!1];
+
+        x2, y2 := findRandomPointOverExtension(f, q, 1);
+        P2 := Proj2Ext![F6!x2, F6!y2, F6!1];
+
+        return [P1, P1conj, P2];
+
+    elif roll le 5 then
+        // Case 2 (prob 1/3): degree-3 Galois orbit
+        x1, y1 := findRandomPointOverExtension(f, q, 3);
+        P1 := Proj2Ext![F6!x1, F6!y1, F6!1];
+        P1conj := Proj2Ext![F6!(x1^q), F6!(y1^q), F6!1];
+        P1conj2 := Proj2Ext![F6!(x1^(q^2)), F6!(y1^(q^2)), F6!1];
+
+        return [P1, P1conj, P1conj2];
+
+    else
+        // Case 3 (prob 1/6): three rational points over F_q
+        return generatekPoints(J, 3);
+    end if;
+
 end function;
 
 magmaSetupHelper := function(baseSpace, definingEquation)
@@ -580,7 +659,7 @@ naiveAddition := function(f, Proj2Ext, DAset, DBset, P1Inf, P2Inf, P3Inf, P4Inf)
     setPoints := Set(listOfPoints);
     
     //if any multiplicity greater then 3, use ideal method. otherwise use non-ideal method
-    if &and[Multiplicity(multisetPoints, P)lt 3: P in setPoints] then 
+    if &and[Multiplicity(multisetPoints, P) lt 3: P in setPoints] then 
         PointTangentPairs := [ <P, tangentLineThroughCurvePoint(f,P, Proj2Ext)>: P in setPoints |Multiplicity(multisetPoints,P) gt 1];
         cubic := curveThroughPtsWithTangent(listOfPoints, PointTangentPairs, 9, Proj2Ext);
     else 
@@ -591,10 +670,14 @@ naiveAddition := function(f, Proj2Ext, DAset, DBset, P1Inf, P2Inf, P3Inf, P4Inf)
     //cubic:= groebnerMethod(listOfPoints, f, 3, Proj2Ext);
 
     // Step 2. Find the divisor E*C - (DA+DB+D-Inf)
-
+    //print("the cubic is");
+    //print(cubic);
+    //print("the f is");
+    //print(f);
     EDOTCdata := IntersectionNumbers(Curve(Proj2Ext, cubic), Curve(Proj2Ext, f));
-    //print #EDOTCdata;
-    //print EDOTCdata;
+    //print("the EDOTCdata is");
+    //print(EDOTCdata);
+    //print sum([x[2]: x in EDOTCdata]); // Problem is thiat sometimes is wrong.
     EDOTC := intersectionDataToMultiset(EDOTCdata); 
     assert Multiset(listOfPoints) subset EDOTC;
     D3 := EDOTC diff Multiset(listOfPoints);    
@@ -608,6 +691,9 @@ naiveAddition := function(f, Proj2Ext, DAset, DBset, P1Inf, P2Inf, P3Inf, P4Inf)
     print listOfPoints;
     */
 
+    //print "D3", #D3;
+    //print D3;
+
     // Step 3. Find the quadratic through the points
     listOfPoints := [P: P in D3] cat [P1Inf, P2Inf]; 
     //print "list of points", #listOfPoints;
@@ -615,7 +701,7 @@ naiveAddition := function(f, Proj2Ext, DAset, DBset, P1Inf, P2Inf, P3Inf, P4Inf)
     multisetPoints := {*P: P in listOfPoints*};
     setPoints := Set(listOfPoints);
     
-    if &and[Multiplicity(multisetPoints, P)lt 3: P in setPoints] then
+    if &and[Multiplicity(multisetPoints, P) lt 3: P in setPoints] then
         PointTangentPairs := [ <P, tangentLineThroughCurvePoint(f,P, Proj2Ext)>: P in setPoints |Multiplicity(multisetPoints,P) gt 1];
         quadric := curveThroughPtsWithTangent(listOfPoints, PointTangentPairs, 5, Proj2Ext);
     else 
@@ -656,6 +742,34 @@ naiveAddition := function(f, Proj2Ext, DAset, DBset, P1Inf, P2Inf, P3Inf, P4Inf)
     return <D4Pts[1],D4Pts[2],D4Pts[3]>;
 
 end function;
+
+
+/*
+Shared negation helper: given three points [P1,P2,P3] on C,
+compute the three residual points from the intersection of C
+with the quadric through [P1,P2,P3,P4Inf,P4Inf].
+*/
+negationPts := function(pts, f, Proj2Ext, P4Inf)
+    P1, P2, P3 := Explode(pts);
+    listOfPoints := [P1, P2, P3, P4Inf, P4Inf];
+    multisetPoints := {*P: P in listOfPoints*};
+    setPoints := Set(listOfPoints);
+
+    if &and[Multiplicity(multisetPoints, P) lt 3: P in setPoints] then
+        PointTangentPairs := [<P, tangentLineThroughCurvePoint(f, P, Proj2Ext)>: P in setPoints | Multiplicity(multisetPoints, P) gt 1];
+        quadric := curveThroughPtsWithTangent(listOfPoints, PointTangentPairs, 5, Proj2Ext);
+    else
+        quadric := groebnerMethod(listOfPoints, f, 2, Proj2Ext);
+    end if;
+
+    DDOTCdata := IntersectionNumbers(Curve(Proj2Ext, quadric), Curve(Proj2Ext, f));
+    DDOTC := intersectionDataToMultiset(DDOTCdata);
+
+    assert #DDOTC eq 8;
+    assert Multiset(listOfPoints) subset DDOTC;
+    return [P: P in (DDOTC diff Multiset(listOfPoints))];
+end function;
+
 
 /******************************************* hybrid & smart addition functions ******************************************/
 

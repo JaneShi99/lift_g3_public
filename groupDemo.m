@@ -59,7 +59,7 @@ runDemo := procedure()
                 rand2 := generateGeneralPoint(J);
 
                 start := Cputime();
-                result := jacFqSize * (rand1 - rand2);
+                result := jacFqSize * (rand1 + (-rand2));
                 
                 assert checkIsId(result);
 
